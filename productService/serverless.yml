@@ -1,0 +1,64 @@
+service: ProductService
+package:
+  individually: true
+# Add the serverless-webpack plugin
+plugins:
+  - serverless-auto-swagger
+  - serverless-webpack
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: us-east-1
+  profile: sandx
+  httpApi:
+    cors:
+      allowedOrigins: "*"
+      allowCredentials: false
+
+functions:
+  getProductsList:
+    handler: src/functions/handler.getProductsList
+    events:
+      - httpApi:
+          method: get
+          path: /products
+          responseData:
+            200:
+              description: "Successful response"
+              bodyType: "ProductList"
+            404:
+              description: "Product not found error"
+            500:
+              description: "Server error"
+
+  getProductById:
+    handler: src/functions/handler.getProductById
+    events:
+      - httpApi:
+          method: get
+          path: /product/{id}
+          description: "Get product by ID"
+          responseData:
+            200:
+              description: "Successful response"
+              bodyType: "Product"
+            404:
+              description: "Product not found error"
+            500:
+              description: "Server error"
+
+custom:
+  webpack:
+    webpackConfig: "webpack.config.js"
+    includeModules: true
+  autoswagger:
+    title: "Product service API"
+    apiType: "httpApi"
+    generateSwaggerOnDeploy: true
+    typefiles: ["./src/interfaces/product.interface.ts"]
+    basePath: "/"
+    schemes: ["https"]
+    useStage: false
