@@ -6,6 +6,7 @@ plugins:
   - serverless-auto-swagger
   - serverless-webpack
   - serverless-offline
+  - serverless-dynamodb-seed
 
 provider:
   name: aws
@@ -17,6 +18,26 @@ provider:
     cors:
       allowedOrigins: "*"
       allowCredentials: false
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - "Fn::GetAtt": [productsTable, Arn]
+            - "Fn::GetAtt": [stockTable, Arn]
+
+  environment:
+    PRODUCT_TABLE: productsTable
+    STOCK_TABLE: stockTable
 
 functions:
   getProductsList:
@@ -50,10 +71,28 @@ functions:
             500:
               description: "Server error"
 
+  createProduct:
+    handler: src/functions/handler.createProduct
+    events:
+      - httpApi:
+          method: post
+          path: /product
+          description: "Create new product"
+          bodyType: "Product"
+          responseData:
+            200:
+              description: "Successful response"
+              bodyType: "Product"
+            404:
+              description: "Product not found error"
+            500:
+              description: "Server error"
+
 custom:
   webpack:
     webpackConfig: "webpack.config.js"
     includeModules: true
+
   autoswagger:
     title: "Product service API"
     apiType: "httpApi"
@@ -62,3 +101,42 @@ custom:
     basePath: "/"
     schemes: ["https"]
     useStage: false
+
+  seed:
+    products:
+      table: productsTable
+      sources:
+        - ./src/data/products.json
+    stocks:
+      table: stockTable
+      sources:
+        - ./src/data/stocks.json
+
+resources:
+  Resources:
+    productsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: productsTable
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    stockTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: stockTable
+        AttributeDefinitions:
+          - AttributeName: product_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: product_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
