@@ -1,0 +1,29 @@
+{
+    "name": "product",
+    "version": "1.0.0",
+    "description": "Serverless webpack",
+    "main": "src/handler.ts",
+    "scripts": {
+        "start": "serverless offline",
+        "deploy": "serverless deploy",
+        "test": "jest"
+    },
+    "license": "MIT",
+    "devDependencies": {
+        "@babel/core": "^7.21.4",
+        "@babel/preset-env": "^7.21.4",
+        "@babel/preset-typescript": "^7.21.4",
+        "@types/aws-lambda": "^8.10.114",
+        "@types/jest": "^29.5.0",
+        "babel-loader": "^9.1.2",
+        "fork-ts-checker-webpack-plugin": "^8.0.0",
+        "jest": "^29.5.0",
+        "serverless": "^3.29.0",
+        "serverless-auto-swagger": "^2.12.0",
+        "serverless-offline": "^12.0.4",
+        "serverless-webpack": "^5.11.0",
+        "typescript": "^5.0.3",
+        "webpack": "^5.77.0",
+        "webpack-node-externals": "^3.0.0"
+    }
+}
