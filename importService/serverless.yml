@@ -6,6 +6,10 @@ plugins:
   - serverless-esbuild
 #   - serverless-offline
 
+custom:
+  client:
+    catalogQueueName: catalogItemsQueue
+
 provider:
   name: aws
   runtime: nodejs16.x
@@ -17,14 +21,22 @@ provider:
     role:
       statements:
         - Effect: Allow
-          Action: "s3:ListBucket"
+          Action: 's3:ListBucket'
           Resource:
-            - "arn:aws:s3:::lambda-integration-bucket"
+            - 'arn:aws:s3:::lambda-integration-bucket'
         - Effect: Allow
           Action:
-            - "s3:*"
+            - 's3:*'
           Resource:
-            - "arn:aws:s3:::lambda-integration-bucket/*"
+            - 'arn:aws:s3:::lambda-integration-bucket/*'
+
+        - Effect: Allow
+          Action: 'sqs:*'
+          Resource:
+            - 'arn:aws:sqs:us-east-1:465735828969:catalogItemsQueue'
+
+  environment:
+    SQS_NAME: ${self:custom.client.catalogQueueName}
 
 functions:
   importFiles:
