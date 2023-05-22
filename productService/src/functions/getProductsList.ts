@@ -1,13 +1,24 @@
 import { APIGatewayProxyResult } from "aws-lambda";
-import { StoreService } from "../store/store.service";
+import { DynamoDbService } from "../services/dynamo.service";
+import { CORS_HEADERS } from "../models/constants";
 
-export const getProductsList = async (): Promise<APIGatewayProxyResult> => {
-  return {
-    statusCode: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Credentials": true,
-    },
-    body: JSON.stringify(StoreService.getAllProductsList()),
-  };
+export const getProductsList = async (
+  event
+): Promise<APIGatewayProxyResult> => {
+  try {
+    console.log("getProductsList", event);
+    const results = await DynamoDbService.getProducts();
+
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(results),
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(error),
+    };
+  }
 };

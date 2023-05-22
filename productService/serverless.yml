@@ -6,6 +6,7 @@ plugins:
   - serverless-auto-swagger
   - serverless-webpack
   - serverless-offline
+  - serverless-dynamodb-seed
 
 provider:
   name: aws
@@ -15,8 +16,39 @@ provider:
   profile: sandx
   httpApi:
     cors:
-      allowedOrigins: "*"
+      allowedOrigins: '*'
       allowCredentials: false
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [productsTable, Arn]
+            - Fn::GetAtt: [stockTable, Arn]
+
+        - Effect: Allow
+          Action: 'sqs:*'
+          Resource:
+            - Fn::GetAtt: [SQSQueue, Arn]
+        - Effect: Allow
+          Action: 'sns:*'
+          Resource:
+            Ref: SNSTopic
+
+  environment:
+    PRODUCT_TABLE: productsTable
+    STOCK_TABLE: stockTable
+    SNS_ARN:
+      Ref: SNSTopic
 
 functions:
   getProductsList:
@@ -27,12 +59,12 @@ functions:
           path: /products
           responseData:
             200:
-              description: "Successful response"
-              bodyType: "ProductList"
+              description: 'Successful response'
+              bodyType: 'ProductList'
             404:
-              description: "Product not found error"
+              description: 'Product not found error'
             500:
-              description: "Server error"
+              description: 'Server error'
 
   getProductById:
     handler: src/functions/handler.getProductById
@@ -40,25 +72,107 @@ functions:
       - httpApi:
           method: get
           path: /product/{id}
-          description: "Get product by ID"
+          description: 'Get product by ID'
           responseData:
             200:
-              description: "Successful response"
-              bodyType: "Product"
+              description: 'Successful response'
+              bodyType: 'Product'
             404:
-              description: "Product not found error"
+              description: 'Product not found error'
             500:
-              description: "Server error"
+              description: 'Server error'
+
+  createProduct:
+    handler: src/functions/handler.createProduct
+    events:
+      - httpApi:
+          method: post
+          path: /product
+          description: 'Create new product'
+          bodyType: 'Product'
+          responseData:
+            200:
+              description: 'Successful response'
+              bodyType: 'Product'
+            404:
+              description: 'Product not found error'
+            500:
+              description: 'Server error'
+
+  catalogBatchProcess:
+    handler: src/functions/handler.catalogBatchProcess
+    events:
+      - sqs:
+          batchSize: 5
+          arn:
+            Fn::GetAtt: [SQSQueue, Arn]
 
 custom:
   webpack:
-    webpackConfig: "webpack.config.js"
+    webpackConfig: 'webpack.config.js'
     includeModules: true
+
   autoswagger:
-    title: "Product service API"
-    apiType: "httpApi"
+    title: 'Product service API'
+    apiType: 'httpApi'
     generateSwaggerOnDeploy: true
-    typefiles: ["./src/interfaces/product.interface.ts"]
-    basePath: "/"
-    schemes: ["https"]
+    typefiles: ['./src/interfaces/product.interface.ts']
+    basePath: '/'
+    schemes: ['https']
     useStage: false
+
+  seed:
+    products:
+      table: productsTable
+      sources:
+        - ./src/data/products.json
+    stocks:
+      table: stockTable
+      sources:
+        - ./src/data/stocks.json
+
+resources:
+  Resources:
+    productsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: productsTable
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    stockTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: stockTable
+        AttributeDefinitions:
+          - AttributeName: product_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: product_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+    SQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: catalogItemsQueue
+
+    SNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: create-product-topic
+    SNSSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: vava.krusnik@gmail.com
+        Protocol: email
+        TopicArn:
+          Ref: SNSTopic

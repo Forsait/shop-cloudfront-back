@@ -1,0 +1,62 @@
+service: ImportService
+package:
+  individually: true
+
+plugins:
+  - serverless-esbuild
+#   - serverless-offline
+
+custom:
+  client:
+    catalogQueueName: catalogItemsQueue
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  stage: dev
+  region: us-east-1
+  profile: sandx
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: 's3:ListBucket'
+          Resource:
+            - 'arn:aws:s3:::lambda-integration-bucket'
+        - Effect: Allow
+          Action:
+            - 's3:*'
+          Resource:
+            - 'arn:aws:s3:::lambda-integration-bucket/*'
+
+        - Effect: Allow
+          Action: 'sqs:*'
+          Resource:
+            - 'arn:aws:sqs:us-east-1:465735828969:catalogItemsQueue'
+
+  environment:
+    SQS_NAME: ${self:custom.client.catalogQueueName}
+
+functions:
+  importFiles:
+    handler: src/functions/handler.getSignedUrl
+    events:
+      - http:
+          method: get
+          path: import
+          cors: true
+          request:
+            parameters:
+              querystrings:
+                name: true
+
+  csvUpload:
+    handler: src/functions/handler.onCsvFileUploaded
+    events:
+      - s3:
+          bucket: lambda-integration-bucket
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: uploaded/
+          existing: true
